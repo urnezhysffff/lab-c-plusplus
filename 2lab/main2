@@ -1,0 +1,121 @@
+#include <iostream>
+#include <stack>
+#include <cmath>
+
+#include <libxml++/libxml++.h>
+#include <iomanip>
+
+using namespace std;
+
+struct weather  {
+    Glib::ustring lat, lon, tmp;
+
+};
+
+class CParser : public xmlpp::SaxParser {
+private:
+    weather wCur, curInfo;
+    std::stack<Glib::ustring> tags;
+
+public:
+    int i = 0;
+    double tmp = 0;
+
+    CParser(Glib::ustring& lat, Glib::ustring& lon) {
+        wCur.lat = lat;
+        wCur.lon = lon;
+        wCur.tmp = "0";
+    }
+
+    virtual ~CParser() {}
+
+    void print_result() {
+        double ans = 0;
+
+        ans = tmp / i;
+
+        cout << "Weather in current location: " << ans << "°C" << '\n';
+    }
+
+protected:
+    virtual void on_start_document() override {
+
+    }
+
+    virtual void on_end_document() override {
+
+    }
+
+    virtual void on_start_element(const Glib::ustring& name,
+                                  const AttributeList& properties) override {
+        tags.push(name);
+
+        if (name == "current") {
+            curInfo.lat.clear();
+            curInfo.lon.clear();
+            curInfo.tmp.clear();
+        }
+    }
+
+    virtual void on_end_element(const Glib::ustring& name) override {
+        tags.pop();
+
+        if (name == "current") {
+            if (fabs(stod(curInfo.lat) - stod(wCur.lat)) < 10
+                && fabs(stod(curInfo.lon) - stod(wCur.lon)) < 10) {
+                i++;
+                tmp += stod(curInfo.tmp);
+            }
+        }
+    }
+
+    virtual void on_characters(const Glib::ustring& chars) override {
+        if (tags.top() == "lat") {
+            curInfo.lat = chars;
+        }
+        else if (tags.top() == "lon") {
+            curInfo.lon = chars;
+        }
+        else if (tags.top() == "temperature") {
+            curInfo.tmp = chars;
+        }
+    }
+
+    virtual void on_comment(const Glib::ustring& text) override {
+
+    }
+
+    virtual void on_warning(const Glib::ustring& text) override {
+
+    }
+
+    virtual void on_error(const Glib::ustring& text) override {
+
+    }
+
+    virtual void on_fatal_error(const Glib::ustring& text) override {
+
+    }
+};
+
+int main(int argc, char** argv) {
+    Glib::ustring filename("weather.xml");
+    Glib::ustring lat("0"), lon("0");
+
+    std::locale::global(std::locale(""));
+
+    for (int i = 1; i < argc - 1; ++i) {
+        Glib::ustring arg = argv[i];
+        if (arg == "--file")
+            filename = argv[++i];
+        else if (arg == "--lat")
+            lat = argv[++i];
+        else if (arg == "--lon")
+            lon = argv[++i];
+    }
+
+    CParser parser(lat, lon);
+    parser.parse_file(filename);
+    parser.print_result();
+    return 0;
+}
